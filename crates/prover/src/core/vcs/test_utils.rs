@@ -4,23 +4,24 @@ use itertools::Itertools;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 
-use super::ops::{MerkleHasher, MerkleOps};
+use super::ops::MerkleOps;
 use super::prover::MerkleDecommitment;
 use super::verifier::MerkleVerifier;
 use crate::core::backend::CpuBackend;
 use crate::core::fields::m31::BaseField;
+use crate::core::vcs::blake2_merkle::Blake2sMerkleHasher;
 use crate::core::vcs::prover::MerkleProver;
 
 pub type TestData<H> = (
     BTreeMap<u32, Vec<usize>>,
     MerkleDecommitment<H>,
     Vec<BaseField>,
-    MerkleVerifier<H>,
+    MerkleVerifier,
 );
 
-pub fn prepare_merkle<H: MerkleHasher>() -> TestData<H>
+pub fn prepare_merkle() -> TestData<Blake2sMerkleHasher>
 where
-    CpuBackend: MerkleOps<H>,
+    CpuBackend: MerkleOps<Blake2sMerkleHasher>,
 {
     const N_COLS: usize = 10;
     const N_QUERIES: usize = 3;
@@ -38,7 +39,7 @@ where
                 .collect_vec()
         })
         .collect_vec();
-    let merkle = MerkleProver::<CpuBackend, H>::commit(cols.iter().collect_vec());
+    let merkle = MerkleProver::<CpuBackend, Blake2sMerkleHasher>::commit(cols.iter().collect_vec());
 
     let mut queries = BTreeMap::<u32, Vec<usize>>::new();
     for log_size in log_size_range.rev() {

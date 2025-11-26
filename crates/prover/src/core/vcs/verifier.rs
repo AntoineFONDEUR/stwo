@@ -8,14 +8,16 @@ use super::prover::MerkleDecommitment;
 use super::utils::{next_decommitment_node, option_flatten_peekable};
 use crate::core::fields::m31::BaseField;
 use crate::core::utils::PeekableExt;
+use crate::core::vcs::blake2_hash::Blake2sHash;
+use crate::core::vcs::blake2_merkle::Blake2sMerkleHasher;
 
-pub struct MerkleVerifier<H: MerkleHasher> {
-    pub root: H::Hash,
+pub struct MerkleVerifier {
+    pub root: Blake2sHash,
     pub column_log_sizes: Vec<u32>,
     pub n_columns_per_log_size: BTreeMap<u32, usize>,
 }
-impl<H: MerkleHasher> MerkleVerifier<H> {
-    pub fn new(root: H::Hash, column_log_sizes: Vec<u32>) -> Self {
+impl MerkleVerifier {
+    pub fn new(root: Blake2sHash, column_log_sizes: Vec<u32>) -> Self {
         let mut n_columns_per_log_size = BTreeMap::new();
         for log_size in &column_log_sizes {
             *n_columns_per_log_size.entry(*log_size).or_insert(0) += 1;
@@ -54,8 +56,23 @@ impl<H: MerkleHasher> MerkleVerifier<H> {
         &self,
         queries_per_log_size: &BTreeMap<u32, Vec<usize>>,
         queried_values: Vec<BaseField>,
-        decommitment: MerkleDecommitment<H>,
+        decommitment: MerkleDecommitment<Blake2sMerkleHasher>,
     ) -> Result<(), MerkleVerificationError> {
+        // dbg!(&self.root);
+        // dbg!(&self.column_log_sizes);
+        // dbg!(&queries_per_log_size);
+        // dbg!(&queried_values
+        //     .clone()
+        //     .into_iter()
+        //     .map(|v| v.0)
+        //     .collect::<Vec<_>>());
+        // dbg!(&decommitment
+        //     .hash_witness
+        //     .clone()
+        //     .into_iter()
+        //     .map(|w| w.0)
+        //     .collect::<Vec<_>>());
+
         let Some(max_log_size) = self.column_log_sizes.iter().max() else {
             return Ok(());
         };
@@ -67,7 +84,7 @@ impl<H: MerkleHasher> MerkleVerifier<H> {
         let mut hash_witness = decommitment.hash_witness.into_iter();
         let mut column_witness = decommitment.column_witness.into_iter();
 
-        let mut last_layer_hashes: Option<Vec<(usize, H::Hash)>> = None;
+        let mut last_layer_hashes: Option<Vec<(usize, Blake2sHash)>> = None;
         for layer_log_size in (0..=*max_log_size).rev() {
             let n_columns_in_layer = *self
                 .n_columns_per_log_size
@@ -145,7 +162,10 @@ impl<H: MerkleHasher> MerkleVerifier<H> {
                     return Err(err);
                 }
 
-                layer_total_queries.push((node_index, H::hash_node(node_hashes, &node_values)));
+                layer_total_queries.push((
+                    node_index,
+                    Blake2sMerkleHasher::hash_node(node_hashes, &node_values),
+                ));
             }
 
             last_layer_hashes = Some(layer_total_queries);

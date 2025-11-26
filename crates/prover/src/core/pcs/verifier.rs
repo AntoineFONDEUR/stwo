@@ -8,20 +8,21 @@ use super::super::fri::{CirclePolyDegreeBound, FriVerifier};
 use super::quotients::{fri_answers, PointSample};
 use super::utils::TreeVec;
 use super::{CommitmentSchemeProof, PcsConfig};
-use crate::core::channel::{Channel, MerkleChannel};
+use crate::core::channel::{Blake2sChannel, Channel, MerkleChannel};
 use crate::core::prover::VerificationError;
-use crate::core::vcs::ops::MerkleHasher;
+use crate::core::vcs::blake2_hash::Blake2sHash;
+use crate::core::vcs::blake2_merkle::{Blake2sMerkleChannel, Blake2sMerkleHasher};
 use crate::core::vcs::verifier::MerkleVerifier;
 use crate::core::ColumnVec;
 
 /// The verifier side of a FRI polynomial commitment scheme. See [super].
 #[derive(Default)]
-pub struct CommitmentSchemeVerifier<MC: MerkleChannel> {
-    pub trees: TreeVec<MerkleVerifier<MC::H>>,
+pub struct CommitmentSchemeVerifier {
+    pub trees: TreeVec<MerkleVerifier>,
     pub config: PcsConfig,
 }
 
-impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
+impl CommitmentSchemeVerifier {
     pub fn new(config: PcsConfig) -> Self {
         Self {
             trees: TreeVec::default(),
@@ -39,11 +40,11 @@ impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
     /// Reads a commitment from the prover.
     pub fn commit(
         &mut self,
-        commitment: <MC::H as MerkleHasher>::Hash,
+        commitment: Blake2sHash,
         log_sizes: &[u32],
-        channel: &mut MC::C,
+        channel: &mut Blake2sChannel,
     ) {
-        MC::mix_root(channel, commitment);
+        Blake2sMerkleChannel::mix_root(channel, commitment);
         let extended_log_sizes = log_sizes
             .iter()
             .map(|&log_size| log_size + self.config.fri_config.log_blowup_factor)
@@ -55,8 +56,8 @@ impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
     pub fn verify_values(
         &self,
         sampled_points: TreeVec<ColumnVec<Vec<CirclePoint<SecureField>>>>,
-        proof: CommitmentSchemeProof<MC::H>,
-        channel: &mut MC::C,
+        proof: CommitmentSchemeProof<Blake2sMerkleHasher>,
+        channel: &mut Blake2sChannel,
     ) -> Result<(), VerificationError> {
         channel.mix_felts(&proof.sampled_values.clone().flatten_cols());
         let random_coeff = channel.draw_felt();
@@ -75,7 +76,7 @@ impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
 
         // FRI commitment phase on OODS quotients.
         let mut fri_verifier =
-            FriVerifier::<MC>::commit(channel, self.config.fri_config, proof.fri_proof, bounds)?;
+            FriVerifier::commit(channel, self.config.fri_config, proof.fri_proof, bounds)?;
 
         // Verify proof of work.
         channel.mix_u64(proof.proof_of_work);
@@ -85,6 +86,7 @@ impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
 
         // Get FRI query positions.
         let query_positions_per_log_size = fri_verifier.sample_query_positions(channel);
+        dbg!(&query_positions_per_log_size);
 
         // Verify merkle decommitments.
         self.trees

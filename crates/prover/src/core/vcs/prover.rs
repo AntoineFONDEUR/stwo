@@ -179,3 +179,76 @@ impl<H: MerkleHasher> MerkleDecommitment<H> {
         }
     }
 }
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::MerkleProver;
+    use crate::core::backend::CpuBackend;
+    use crate::core::fields::m31::BaseField;
+    use crate::core::fri::get_query_positions_by_log_size;
+    use crate::core::queries::Queries;
+    use crate::core::vcs::blake2_merkle::Blake2sMerkleHasher;
+    use crate::core::vcs::verifier::MerkleVerifier;
+
+    #[test]
+    fn merkle_commit_decommit_roundtrip() {
+        // Construct columns
+        fn make_column(len: usize, start: u32) -> Vec<BaseField> {
+            (0..len)
+                .map(|i| BaseField::from(start + i as u32))
+                .collect()
+        }
+
+        let columns = vec![
+            make_column(1 << 5, 1),
+            make_column(1 << 5, 100),
+            make_column(1 << 3, 200),
+            make_column(1 << 3, 300),
+            make_column(1 << 3, 400),
+            make_column(1 << 2, 500),
+        ];
+        assert_eq!(columns.iter().filter(|c| c.len() == 1 << 5).count(), 2);
+        assert_eq!(columns.iter().filter(|c| c.len() == 1 << 3).count(), 3);
+        assert_eq!(columns.iter().filter(|c| c.len() == 1 << 2).count(), 1);
+        assert!(columns.iter().all(|column| column.len().is_power_of_two()));
+
+        let column_refs = columns.iter().collect::<Vec<_>>();
+        let prover = MerkleProver::<CpuBackend, Blake2sMerkleHasher>::commit(column_refs.clone());
+
+        // Construct queries
+        let log5_queries = Queries::from_positions(vec![1, 3, 4, 7, 11, 15, 17, 21, 24, 28], 5);
+        let queries_per_log_size = get_query_positions_by_log_size(
+            &log5_queries,
+            columns
+                .iter()
+                .map(|c| c.len().ilog2())
+                .collect::<BTreeSet<_>>(),
+        );
+
+        // Decommit
+        let (values, decommitment) = prover.decommit(&queries_per_log_size, column_refs);
+
+        // Construct verifier
+        let column_log_sizes = columns
+            .iter()
+            .map(|column| column.len().ilog2())
+            .collect::<Vec<_>>();
+        let verifier = MerkleVerifier::new(prover.root(), column_log_sizes);
+
+        dbg!(&prover.root());
+        dbg!(&verifier.column_log_sizes);
+        dbg!(&queries_per_log_size);
+        dbg!(&values.clone().into_iter().map(|v| v.0).collect::<Vec<_>>());
+        dbg!(&decommitment
+            .hash_witness
+            .clone()
+            .into_iter()
+            .map(|w| w.0)
+            .collect::<Vec<_>>());
+
+        if let Err(err) = verifier.verify(&queries_per_log_size, values, decommitment) {
+            panic!("Merkle verification failed: {err:?}");
+        }
+    }
+}

@@ -52,20 +52,20 @@ mod tests {
     use super::Blake2sMerkleChannel;
     use crate::core::channel::{Blake2sChannel, MerkleChannel};
     use crate::core::fields::m31::BaseField;
-    use crate::core::vcs::blake2_merkle::{Blake2sHash, Blake2sMerkleHasher};
+    use crate::core::vcs::blake2_merkle::Blake2sHash;
     use crate::core::vcs::test_utils::prepare_merkle;
     use crate::core::vcs::verifier::MerkleVerificationError;
 
     #[test]
     fn test_merkle_success() {
-        let (queries, decommitment, values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, decommitment, values, verifier) = prepare_merkle();
 
         verifier.verify(&queries, values, decommitment).unwrap();
     }
 
     #[test]
     fn test_merkle_invalid_witness() {
-        let (queries, mut decommitment, values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, mut decommitment, values, verifier) = prepare_merkle();
         decommitment.hash_witness[4] = Blake2sHash::default();
 
         assert_eq!(
@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn test_merkle_invalid_value() {
-        let (queries, decommitment, mut values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, decommitment, mut values, verifier) = prepare_merkle();
         values[6] = BaseField::zero();
 
         assert_eq!(
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_merkle_witness_too_short() {
-        let (queries, mut decommitment, values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, mut decommitment, values, verifier) = prepare_merkle();
         decommitment.hash_witness.pop();
 
         assert_eq!(
@@ -98,7 +98,7 @@ mod tests {
 
     #[test]
     fn test_merkle_witness_too_long() {
-        let (queries, mut decommitment, values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, mut decommitment, values, verifier) = prepare_merkle();
         decommitment.hash_witness.push(Blake2sHash::default());
 
         assert_eq!(
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn test_merkle_column_values_too_long() {
-        let (queries, decommitment, mut values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, decommitment, mut values, verifier) = prepare_merkle();
         values.insert(3, BaseField::zero());
 
         assert_eq!(
@@ -120,7 +120,7 @@ mod tests {
 
     #[test]
     fn test_merkle_column_values_too_short() {
-        let (queries, decommitment, mut values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (queries, decommitment, mut values, verifier) = prepare_merkle();
         values.remove(3);
 
         assert_eq!(
@@ -132,7 +132,7 @@ mod tests {
     #[test]
     fn test_merkle_channel() {
         let mut channel = Blake2sChannel::default();
-        let (_queries, _decommitment, _values, verifier) = prepare_merkle::<Blake2sMerkleHasher>();
+        let (_queries, _decommitment, _values, verifier) = prepare_merkle();
         Blake2sMerkleChannel::mix_root(&mut channel, verifier.root);
         assert_eq!(channel.channel_time.n_challenges, 1);
     }
