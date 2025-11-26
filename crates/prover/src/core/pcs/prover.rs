@@ -148,6 +148,7 @@ impl<'a, B: BackendForChannel<MC>, MC: MerkleChannel> CommitmentSchemeProver<'a,
             queried_values,
             proof_of_work,
             fri_proof,
+            query_positions_per_log_size,
             config: self.config,
         }
     }
@@ -162,6 +163,7 @@ pub struct CommitmentSchemeProof<H: MerkleHasher> {
     pub queried_values: TreeVec<Vec<BaseField>>,
     pub proof_of_work: u64,
     pub fri_proof: FriProof<H>,
+    pub query_positions_per_log_size: BTreeMap<u32, Vec<usize>>,
 }
 
 pub struct TreeBuilder<'a, 'b, B: BackendForChannel<MC>, MC: MerkleChannel> {

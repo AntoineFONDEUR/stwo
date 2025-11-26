@@ -58,8 +58,9 @@ impl MerkleVerifier {
         queried_values: Vec<BaseField>,
         decommitment: MerkleDecommitment<Blake2sMerkleHasher>,
     ) -> Result<(), MerkleVerificationError> {
+        // println!("decommiting");
+        // dbg!(&self.column_log_sizes.clone());
         // dbg!(&self.root);
-        // dbg!(&self.column_log_sizes);
         // dbg!(&queries_per_log_size);
         // dbg!(&queried_values
         //     .clone()

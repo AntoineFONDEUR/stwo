@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::ops::Deref;
 use std::{array, mem};
 
@@ -203,6 +204,7 @@ impl<H: MerkleHasher> StarkProof<H> {
             proof_of_work: _,
             fri_proof,
             config: _,
+            query_positions_per_log_size: _,
         } = commitment_scheme_proof;
 
         let FriProof {
@@ -290,6 +292,26 @@ impl SizeEstimate for SecureField {
     }
 }
 
+impl SizeEstimate for usize {
+    fn size_estimate(&self) -> usize {
+        mem::size_of::<Self>()
+    }
+}
+
+impl SizeEstimate for u32 {
+    fn size_estimate(&self) -> usize {
+        mem::size_of::<Self>()
+    }
+}
+
+impl<K: SizeEstimate, V: SizeEstimate> SizeEstimate for BTreeMap<K, V> {
+    fn size_estimate(&self) -> usize {
+        self.iter()
+            .map(|(k, v)| k.size_estimate() + v.size_estimate())
+            .sum()
+    }
+}
+
 impl<H: MerkleHasher> SizeEstimate for MerkleDecommitment<H> {
     fn size_estimate(&self) -> usize {
         let Self {
@@ -332,6 +354,7 @@ impl<H: MerkleHasher> SizeEstimate for CommitmentSchemeProof<H> {
             proof_of_work,
             fri_proof,
             config,
+            query_positions_per_log_size,
         } = self;
         commitments.size_estimate()
             + sampled_values.size_estimate()
@@ -340,6 +363,7 @@ impl<H: MerkleHasher> SizeEstimate for CommitmentSchemeProof<H> {
             + mem::size_of_val(proof_of_work)
             + fri_proof.size_estimate()
             + mem::size_of_val(config)
+            + query_positions_per_log_size.size_estimate()
     }
 }
 

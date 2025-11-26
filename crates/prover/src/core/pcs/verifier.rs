@@ -86,7 +86,6 @@ impl CommitmentSchemeVerifier {
 
         // Get FRI query positions.
         let query_positions_per_log_size = fri_verifier.sample_query_positions(channel);
-        dbg!(&query_positions_per_log_size);
 
         // Verify merkle decommitments.
         self.trees
