@@ -557,7 +557,10 @@ impl<MC: MerkleChannel> FriVerifier<MC> {
     }
 
     /// Samples and returns query positions mapped by column log size.
-    pub fn sample_query_positions(&mut self, channel: &mut MC::C) -> BTreeMap<u32, Vec<usize>> {
+    pub fn sample_query_positions(
+        &mut self,
+        channel: &mut MC::C,
+    ) -> (BTreeMap<u32, Vec<usize>>, Queries) {
         let column_log_sizes = self
             .first_layer
             .column_commitment_domains
@@ -568,8 +571,8 @@ impl<MC: MerkleChannel> FriVerifier<MC> {
         let queries = Queries::generate(channel, max_column_log_size, self.config.n_queries);
         let query_positions_by_log_size =
             get_query_positions_by_log_size(&queries, column_log_sizes);
-        self.queries = Some(queries);
-        query_positions_by_log_size
+        self.queries = Some(queries.clone());
+        (query_positions_by_log_size, queries)
     }
 }
 
