@@ -9,7 +9,7 @@ use super::quotients::{fri_answers, PointSample};
 use super::utils::TreeVec;
 use super::{CommitmentSchemeProof, PcsConfig};
 use crate::core::channel::{Channel, MerkleChannel};
-use crate::core::queries::Queries;
+use crate::core::queries::QueriesWithBranching;
 use crate::core::prover::VerificationError;
 use crate::core::vcs::ops::MerkleHasher;
 use crate::core::vcs::verifier::MerkleVerifier;
@@ -58,7 +58,7 @@ impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
         sampled_points: TreeVec<ColumnVec<Vec<CirclePoint<SecureField>>>>,
         proof: CommitmentSchemeProof<MC::H>,
         channel: &mut MC::C,
-    ) -> Result<Queries, VerificationError> {
+    ) -> Result<QueriesWithBranching, VerificationError> {
         channel.mix_felts(&proof.sampled_values.clone().flatten_cols());
         let random_coeff = channel.draw_felt();
 
@@ -122,6 +122,6 @@ impl<MC: MerkleChannel> CommitmentSchemeVerifier<MC> {
 
         fri_verifier.decommit(fri_answers)?;
 
-        Ok(queries)
+        Ok(queries.into_with_branching())
     }
 }

@@ -19,7 +19,7 @@ use crate::core::fields::m31::BaseField;
 use crate::core::fields::qm31::SecureField;
 use crate::core::fri::{FriLayerProof, FriProof};
 use crate::core::pcs::{CommitmentSchemeProver, CommitmentSchemeVerifier};
-use crate::core::queries::Queries;
+use crate::core::queries::QueriesWithBranching;
 use crate::core::vcs::hash::Hash;
 use crate::core::vcs::prover::MerkleDecommitment;
 use crate::core::vcs::verifier::MerkleVerificationError;
@@ -98,7 +98,7 @@ pub fn verify_with_queries<MC: MerkleChannel>(
     channel: &mut MC::C,
     commitment_scheme: &mut CommitmentSchemeVerifier<MC>,
     proof: StarkProof<MC::H>,
-) -> Result<Queries, VerificationError> {
+) -> Result<QueriesWithBranching, VerificationError> {
     let n_preprocessed_columns = commitment_scheme.trees[PREPROCESSED_TRACE_IDX]
         .column_log_sizes
         .len();

@@ -16,6 +16,13 @@ pub struct Queries {
     pub log_domain_size: u32,
 }
 
+/// Query positions along with the branching pattern derived from them.
+#[derive(Debug, Clone)]
+pub struct QueriesWithBranching {
+    pub queries: Queries,
+    pub branching: Vec<Vec<u8>>,
+}
+
 impl Queries {
     /// Randomizes a set of query indices uniformly over the range [0, 2^`log_query_size`).
     pub fn generate(channel: &mut impl Channel, log_domain_size: u32, n_queries: usize) -> Self {
@@ -56,6 +63,46 @@ impl Queries {
         Self {
             positions,
             log_domain_size,
+        }
+    }
+
+    /// Returns the branching pattern per parent log size.
+    /// Each entry is a bitmask: bit 0 for left child present, bit 1 for right child present.
+    pub fn branching_by_parent(&self) -> Vec<Vec<u8>> {
+        let max_log_size = self.log_domain_size as usize;
+        let mut queries_by_log_size = vec![Vec::new(); max_log_size + 1];
+        let mut current = self.clone();
+        loop {
+            let log_size = current.log_domain_size as usize;
+            queries_by_log_size[log_size] = current.positions.clone();
+            if log_size == 0 {
+                break;
+            }
+            current = current.fold(1);
+        }
+
+        let mut branching = vec![Vec::new(); max_log_size + 1];
+        for parent_log in 0..max_log_size {
+            let parents = &queries_by_log_size[parent_log];
+            let children = &queries_by_log_size[parent_log + 1];
+            for &parent in parents {
+                let left = parent * 2;
+                let right = left + 1;
+                let left_present = children.binary_search(&left).is_ok();
+                let right_present = children.binary_search(&right).is_ok();
+                let code = (left_present as u8) | ((right_present as u8) << 1);
+                branching[parent_log].push(code);
+            }
+        }
+
+        branching
+    }
+
+    pub fn into_with_branching(self) -> QueriesWithBranching {
+        let branching = self.branching_by_parent();
+        QueriesWithBranching {
+            queries: self,
+            branching,
         }
     }
 }
